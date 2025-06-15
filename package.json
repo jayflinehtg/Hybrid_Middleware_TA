@@ -1,0 +1,54 @@
+{
+  "name": "herbal-plant-middleware",
+  "version": "1.0.0",
+  "main": "server.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon --legacy-watch server.js",
+    "compile": "truffle compile --all",
+    "migrate": "truffle migrate --network development",
+    "migrate-tea":"truffle migrate --network sepolia",
+    "test": "jest",
+    "test:watch": "jest --watch"
+  },
+  "keywords": [],
+  "author": "Kelompok9",
+  "license": "MIT",
+  "type": "commonjs",
+  "dependencies": {
+    "@ethersproject/providers": "^5.8.0",
+    "@truffle/hdwallet-provider": "^2.1.15",
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ethers": "^5.7.2",
+    "express": "^4.21.2",
+    "express-rate-limit": "^6.8.2",
+    "express-validator": "^7.2.1",
+    "form-data": "^4.0.2",
+    "helmet": "^7.1.0",
+    "ipfs-http-client": "^52.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "multiformats": "^13.3.2",
+    "node-fetch": "^2.7.0",
+    "uuid": "^11.1.0",
+    "web3": "4.16",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^20.11.0",
+    "jest": "^29.7.0",
+    "nodemon": "^3.1.9",
+    "supertest": "^6.3.4",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "description": "Middleware layer untuk sistem manajemen tanaman herbal berbasis blockchain"
+}
