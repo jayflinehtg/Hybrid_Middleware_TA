@@ -1,5 +1,6 @@
 const { initialize } = require("../utils/blockchain.js");
 const { isUserLoggedIn, getUserData } = require("./authController.js");
+const { addPlantRecordToPublic } = require("../utils/publicBlockchain.js");
 
 async function addPlantData(req, res) {
   try {
@@ -53,15 +54,56 @@ async function addPlantData(req, res) {
     // Ensure the plantId is a string, converting if necessary
     const plantIdString = plantId.toString();
 
-    res.json({
-      success: true,
-      message: "Tanaman berhasil ditambahkan",
-      txHash: tx.transactionHash,
-      plantId: plantIdString,
-    });
+    // Simpan record ke jaringan public
+    try {
+      console.log("📡 Menyimpan record ke jaringan public...");
+
+      const publicResult = await addPlantRecordToPublic(
+        tx.transactionHash, // Transaction hash dari Ganache
+        plantIdString, // Plant ID dari Ganache
+        userAddress // User address dari Ganache
+      );
+
+      console.log(
+        "✅ Record berhasil disimpan ke jaringan public:",
+        publicResult.publicTxHash
+      );
+
+      // Response dengan informasi lengkap
+      res.json({
+        success: true,
+        message:
+          "Tanaman berhasil ditambahkan ke Ganache dan record disimpan ke jaringan public",
+        ganache: {
+          txHash: tx.transactionHash,
+          plantId: plantIdString,
+        },
+        public: {
+          txHash: publicResult.publicTxHash,
+          blockNumber: publicResult.blockNumber,
+          gasUsed: publicResult.gasUsed,
+        },
+      });
+    } catch (publicError) {
+      console.error("❌ Error menyimpan ke jaringan public:", publicError);
+
+      // Tetap return success untuk Ganache, tapi beri warning untuk public network
+      res.json({
+        success: true,
+        message:
+          "Tanaman berhasil ditambahkan ke Ganache, tetapi gagal menyimpan record ke jaringan public",
+        ganache: {
+          txHash: tx.transactionHash,
+          plantId: plantIdString,
+        },
+        publicError: publicError.message,
+        warning:
+          "Data tersimpan di Ganache tetapi tidak tersinkronisasi ke jaringan public",
+      });
+    }
 
     console.timeEnd("Add Plant Time");
-    console.log(`✅ Plant added with transaction hash: ${tx.transactionHash}`);
+    console.log(`✅ Plant added with Ganache transaction hash: ${tx.transactionHash}`);
   } catch (error) {
     console.error("❌ Error in addPlantData:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -73,8 +115,10 @@ async function editPlant(req, res) {
   try {
     console.time("Edit Plant Time");
     const userAddress = req.user.publicKey;
+
+    const plantIdFromParams = req.params.plantId;
+
     const {
-      plantId,
       name,
       namaLatin,
       komposisi,
@@ -84,6 +128,11 @@ async function editPlant(req, res) {
       efekSamping,
       ipfsHash,
     } = req.body;
+
+    const plantId = plantIdFromParams.toString();
+
+    console.log("Editing plant ID:", plantId);
+    console.log("User address:", userAddress);
 
     // Pastikan pengguna sudah login
     const loggedIn = await isUserLoggedIn(userAddress);
@@ -98,11 +147,20 @@ async function editPlant(req, res) {
     const { contract } = await initialize(userAddress);
 
     // Cek apakah tanaman yang ingin diedit milik pengguna
-    const plant = await contract.methods.getPlant(plantId).call();
-    if (plant.owner.toLowerCase() !== userAddress.toLowerCase()) {
-      return res.status(403).json({
+    try {
+      const plant = await contract.methods.getPlant(plantId).call();
+
+      if (plant.owner.toLowerCase() !== userAddress.toLowerCase()) {
+        return res.status(403).json({
+          success: false,
+          message: "Anda tidak memiliki hak untuk mengedit tanaman ini",
+        });
+      }
+    } catch (getPlantError) {
+      console.error("Error getting plant:", getPlantError);
+      return res.status(404).json({
         success: false,
-        message: "Anda tidak memiliki hak untuk mengedit tanaman ini",
+        message: "Tanaman tidak ditemukan atau plantId tidak valid",
       });
     }
 
@@ -121,16 +179,56 @@ async function editPlant(req, res) {
       )
       .send({ from: userAddress, gas: 5000000 });
 
-    res.json({
-      success: true,
-      message: "Tanaman berhasil diedit",
-      txHash: tx.transactionHash,
-      plantId: plantId.toString(), // Mengonversi BigInt ke string
-    });
+    // Simpan record edit ke jaringan public
+    try {
+      console.log("📡 Menyimpan record edit ke jaringan public...");
+
+      const publicResult = await addPlantRecordToPublic(
+        tx.transactionHash,
+        plantId,
+        userAddress
+      );
+
+      console.log(
+        "✅ Record edit berhasil disimpan ke jaringan public:",
+        publicResult.publicTxHash
+      );
+
+      // Response dengan informasi lengkap
+      res.json({
+        success: true,
+        message:
+          "Tanaman berhasil diedit di Ganache dan record disimpan ke jaringan public",
+        ganache: {
+          txHash: tx.transactionHash,
+          plantId: plantId.toString(),
+        },
+        public: {
+          txHash: publicResult.publicTxHash,
+          blockNumber: publicResult.blockNumber,
+          gasUsed: publicResult.gasUsed,
+        },
+      });
+    } catch (publicError) {
+      console.error("❌ Error menyimpan edit ke jaringan public:", publicError);
+
+      // Tetap return success untuk Ganache, tapi beri warning untuk public network
+      res.json({
+        success: true,
+        message:
+          "Tanaman berhasil diedit di Ganache, tetapi gagal menyimpan record ke jaringan public",
+        ganache: {
+          txHash: tx.transactionHash,
+          plantId: plantId.toString(),
+        },
+        publicError: publicError.message,
+        warning:
+          "Edit tersimpan di Ganache tetapi tidak tersinkronisasi ke jaringan public",
+      });
+    }
+
     console.timeEnd("Edit Plant Time");
-    console.log(
-      `✅ Berhasil mengedit tanaman dengan TX Hash: ${tx.transactionHash}`
-    );
+    console.log(`✅ Plant edited with Ganache transaction hash: ${tx.transactionHash}`);
   } catch (error) {
     console.error("❌ Error in editPlant:", error);
     res.status(500).json({ success: false, message: error.message });

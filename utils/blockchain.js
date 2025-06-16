@@ -14,8 +14,7 @@ const contractJSON = JSON.parse(fs.readFileSync(contractPath, "utf8"));
 
 // Extract ABI and Contract Address
 const contractABI = contractJSON.abi;
-const contractAddress =
-  process.env.SMART_CONTRACT_ADDRESS;
+const contractAddress = process.env.PRIVATE_SMART_CONTRACT_ADDRESS;
 
 let web3;
 let contract;
@@ -23,11 +22,20 @@ let initializationPromise = null;
 
 // Fungsi untuk menghubungkan ke blockchain menggunakan RPC URL dari .env
 async function connectToBlockchain() {
-  const rpcUrl = process.env.BLOCKCHAIN_RPC_URL;
+  const rpcUrl = process.env.PRIVATE_NETWORK_RPC_URL;
 
   if (!rpcUrl) {
-    throw new Error("BLOCKCHAIN_RPC_URL tidak ditemukan di file .env");
+    throw new Error("PRIVATE_NETWORK_RPC_URL tidak ditemukan di file .env");
   }
+
+  if (!contractAddress) {
+    throw new Error(
+      "PRIVATE_SMART_CONTRACT_ADDRESS tidak ditemukan di file .env"
+    );
+  }
+
+  console.log("Using contract address:", contractAddress); // Debug log
+  console.log("Using RPC URL:", rpcUrl);
 
   web3 = new Web3(rpcUrl);
 

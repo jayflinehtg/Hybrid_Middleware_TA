@@ -1,9 +1,14 @@
+// =================== BIGINT SERIALIZATION ===================
+BigInt.prototype.toJSON = function () {
+  return this.toString();
+};
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const routes = require("./routes/index.js"); // const router utama
-const { verifyToken } = require("./jwtMiddleware.js"); // Import middleware untuk autentikasi JWT
+const { initializePublic } = require("./utils/publicBlockchain.js");
 
 // Inisialisasi environment variables
 dotenv.config();
@@ -16,8 +21,8 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// PENTING: Mount router utama dari index.js
-app.use("/api", routes); // Menambahkan prefix '/api'
+// Mount router utama dari index.js
+app.use("/api", routes);
 
 // Penanganan 404 untuk rute yang tidak terdaftar
 app.use((req, res) => {
@@ -38,9 +43,27 @@ app.use((err, req, res, next) => {
   });
 });
 
+// =================== INISIALISASI BLOCKCHAIN ===================
+async function initializeBlockchains() {
+  try {
+    await initializePublic();
+    console.log("✅ Public blockchain (Tea Sepolia) berhasil di-inisialisasi");
+
+    console.log("✅ Hybrid blockchain system siap digunakan!");
+  } catch (error) {
+    console.error("❌ Error initializing blockchains:", error.message);
+    // Jangan exit process, biarkan server tetap jalan untuk debugging
+    console.log(
+      "⚠️  Server tetap berjalan meskipun ada masalah dengan blockchain"
+    );
+  }
+}
+
 // =================== START SERVER ===================
-app.listen(PORT, "0.0.0.0", () => {
+app.listen(PORT, "0.0.0.0", async () => {
   console.log(`Server berjalan di http://0.0.0.0:${PORT}`);
+
+  await initializeBlockchains();
 });
 
 module.exports = app;

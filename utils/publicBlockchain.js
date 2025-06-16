@@ -1,0 +1,266 @@
+const dotenv = require("dotenv");
+const Web3 = require("web3").Web3;
+const fs = require("fs");
+const path = require("path");
+
+dotenv.config();
+
+// Path to the compiled PublicRecord contract JSON
+const contractPath = path.resolve(
+  __dirname,
+  "../build/contracts/PublicRecord.json"
+);
+const contractJSON = JSON.parse(fs.readFileSync(contractPath, "utf8"));
+
+// Extract ABI and Contract Address for Public Network
+const contractABI = contractJSON.abi;
+const contractAddress = process.env.PUBLIC_SMART_CONTRACT_ADDRESS;
+
+let web3;
+let contract;
+let account;
+let initializationPromise = null;
+
+// Fungsi untuk menghubungkan ke jaringan public (Tea Sepolia)
+async function connectToPublicBlockchain() {
+  const rpcUrl = process.env.PUBLIC_NETWORK_RPC_URL;
+  const privateKey = process.env.PUBLIC_NETWORK_PRIVATE_KEY;
+
+  if (!rpcUrl) {
+    throw new Error("PUBLIC_NETWORK_RPC_URL tidak ditemukan di file .env");
+  }
+
+  if (!privateKey) {
+    throw new Error("PUBLIC_NETWORK_PRIVATE_KEY tidak ditemukan di file .env");
+  }
+
+  web3 = new Web3(rpcUrl);
+
+  try {
+    const chainId = await web3.eth.getChainId();
+    console.log(`Connected to public blockchain. Chain ID: ${chainId}`);
+
+    // Buat account dari private key
+    account = web3.eth.accounts.privateKeyToAccount(privateKey);
+
+    // Tambahkan account ke wallet web3
+    web3.eth.accounts.wallet.add(account);
+
+    console.log(`Public account initialized: ${account.address}`);
+  } catch (error) {
+    console.error("Failed to connect to public blockchain", error);
+    throw error;
+  }
+}
+
+async function initializePublic() {
+  if (initializationPromise) {
+    return initializationPromise;
+  }
+
+  initializationPromise = (async () => {
+    console.log("Memulai inisialisasi public blockchain...");
+
+    try {
+      await connectToPublicBlockchain();
+
+      // Inisialisasi kontrak PublicRecord
+      contract = new web3.eth.Contract(contractABI, contractAddress);
+
+      if (!contract || !contract.methods) {
+        throw new Error("Public contract tidak terhubung dengan benar.");
+      }
+
+      console.log("Public blockchain berhasil diinisialisasi.");
+      return { contract, web3, account };
+    } catch (error) {
+      initializationPromise = null;
+      throw error;
+    }
+  })();
+
+  return initializationPromise;
+}
+
+// Fungsi untuk mengirim transaksi ke jaringan public (HANYA 1 METODE)
+async function sendPublicTransaction(methodCall) {
+  try {
+    const { web3, account } = await initializePublic();
+
+    // Buat transaction object
+    const transactionObject = {
+      from: account.address,
+      to: contractAddress,
+      data: methodCall.encodeABI(),
+      // Web3 akan otomatis estimate gas dan gasPrice
+    };
+
+    console.log("Sending transaction to public network...");
+
+    // Gunakan wallet method untuk mengirim transaksi
+    const tx = await web3.eth.sendTransaction(transactionObject);
+
+    console.log(`✅ Public transaction successful: ${tx.transactionHash}`);
+    return tx;
+  } catch (error) {
+    console.error("❌ Error sending public transaction:", error);
+    throw error;
+  }
+}
+
+// Fungsi khusus untuk menambahkan plant record ke jaringan public
+async function addPlantRecordToPublic(ganacheTxHash, plantId, userAddress) {
+  try {
+    console.time("Add Plant Record to Public Time");
+
+    const { contract } = await initializePublic();
+
+    // Buat method call
+    const methodCall = contract.methods.addPlantRecord(
+      ganacheTxHash,
+      plantId.toString(), // Pastikan plantId dalam format string
+      userAddress
+    );
+
+    // Kirim transaksi menggunakan satu metode saja
+    const tx = await sendPublicTransaction(methodCall);
+
+    console.timeEnd("Add Plant Record to Public Time");
+
+    return {
+      success: true,
+      publicTxHash: tx.transactionHash,
+      blockNumber: tx.blockNumber,
+      gasUsed: tx.gasUsed,
+    };
+  } catch (error) {
+    console.error("❌ Error adding plant record to public network:", error);
+    throw error;
+  }
+}
+
+// Fungsi untuk mengambil plant record dari jaringan public (read-only)
+async function getPlantRecordFromPublic(recordId) {
+  try {
+    const { contract } = await initializePublic();
+
+    const record = await contract.methods.getPlantRecord(recordId).call();
+
+    return {
+      ganacheTxHash: record.ganacheTxHash,
+      plantId: record.plantId.toString(),
+      userAddress: record.userAddress,
+      timestamp: record.timestamp.toString(),
+    };
+  } catch (error) {
+    console.error("❌ Error getting plant record from public network:", error);
+    throw error;
+  }
+}
+
+// Fungsi untuk mendapatkan semua record di jaringan public
+async function getAllPublicRecords() {
+  const { contract } = await initializePublic();
+  const count = await contract.methods.recordCount().call();
+  const total = parseInt(count.toString());
+  const records = [];
+
+  for (let i = 0; i < total; i++) {
+    const record = await contract.methods.getPlantRecord(i).call();
+    records.push({
+      recordId: i.toString(),
+      ganacheTxHash: record.ganacheTxHash,
+      plantId: record.plantId.toString(),
+      userAddress: record.userAddress,
+      timestamp: record.timestamp.toString(),
+    });
+  }
+
+  return records;
+}
+
+// Fungsi untuk mendapatkan transaction history berdasarkan plantId dengan pagination
+async function getPlantTransactionHistory(plantId, page = 1, limit = 10) {
+  try {
+    const { contract } = await initializePublic();
+    const totalRecords = await contract.methods.recordCount().call();
+    const total = parseInt(totalRecords.toString());
+    
+    // Filter records berdasarkan plantId
+    const plantRecords = [];
+    
+    for (let i = 0; i < total; i++) {
+      const record = await contract.methods.getPlantRecord(i).call();
+      
+      // Filter hanya record yang sesuai dengan plantId
+      if (record.plantId.toString() === plantId.toString()) {
+        plantRecords.push({
+          recordId: i.toString(),
+          ganacheTxHash: record.ganacheTxHash,
+          plantId: record.plantId.toString(),
+          userAddress: record.userAddress,
+          timestamp: record.timestamp.toString(),
+        });
+      }
+    }
+    
+    // Sort berdasarkan timestamp (terbaru dulu)
+    plantRecords.sort((a, b) => parseInt(b.timestamp) - parseInt(a.timestamp));
+    
+    // Implementasi pagination
+    const startIndex = (page - 1) * limit;
+    const endIndex = startIndex + limit;
+    const paginatedRecords = plantRecords.slice(startIndex, endIndex);
+    
+    // Tentukan jenis transaksi berdasarkan urutan
+    const recordsWithType = paginatedRecords.map((record, index) => {
+      // Record pertama (berdasarkan timestamp terlama) adalah "Add Plant"
+      // Record selanjutnya adalah "Edit Plant"
+      const allRecordsForPlant = plantRecords.filter(r => r.plantId === record.plantId);
+      const sortedByTimestamp = allRecordsForPlant.sort((a, b) => parseInt(a.timestamp) - parseInt(b.timestamp));
+      const recordIndex = sortedByTimestamp.findIndex(r => r.recordId === record.recordId);
+      
+      return {
+        ...record,
+        transactionType: recordIndex === 0 ? "Add Plant" : "Edit Plant",
+        icon: recordIndex === 0 ? "🌱" : "✏️"
+      };
+    });
+    
+    return {
+      records: recordsWithType,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(plantRecords.length / limit),
+        totalRecords: plantRecords.length,
+        hasNextPage: endIndex < plantRecords.length,
+        hasPreviousPage: page > 1
+      }
+    };
+  } catch (error) {
+    console.error("❌ Error getting plant transaction history:", error);
+    throw error;
+  }
+}
+
+// Fungsi untuk mendapatkan total record count
+async function getRecordCount() {
+  try {
+    const { contract } = await initializePublic();
+
+    const count = await contract.methods.recordCount().call();
+    return count.toString();
+  } catch (error) {
+    console.error("❌ Error getting record count:", error);
+    throw error;
+  }
+}
+
+module.exports = {
+  initializePublic,
+  addPlantRecordToPublic,
+  getPlantRecordFromPublic,
+  getAllPublicRecords,
+  getPlantTransactionHistory,
+  getRecordCount,
+};
