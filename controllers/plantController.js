@@ -103,7 +103,9 @@ async function addPlantData(req, res) {
     }
 
     console.timeEnd("Add Plant Time");
-    console.log(`✅ Plant added with Ganache transaction hash: ${tx.transactionHash}`);
+    console.log(
+      `✅ Plant added with Ganache transaction hash: ${tx.transactionHash}`
+    );
   } catch (error) {
     console.error("❌ Error in addPlantData:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -228,7 +230,9 @@ async function editPlant(req, res) {
     }
 
     console.timeEnd("Edit Plant Time");
-    console.log(`✅ Plant edited with Ganache transaction hash: ${tx.transactionHash}`);
+    console.log(
+      `✅ Plant edited with Ganache transaction hash: ${tx.transactionHash}`
+    );
   } catch (error) {
     console.error("❌ Error in editPlant:", error);
     res.status(500).json({ success: false, message: error.message });
@@ -347,16 +351,24 @@ async function getAverageRating(req, res) {
     // Mengambil total rating dan jumlah rating yang diberikan pada tanaman
     const plant = await contract.methods.getPlant(plantId).call();
 
-    // Menghitung rata-rata rating
-    const totalRating = plant.ratingTotal; // Total rating yang diterima
-    const ratingCount = plant.ratingCount; // Jumlah pengguna yang memberi rating
+    // Menghitung rata-rata rating dan error handling
+    const totalRating = plant.ratingTotal ? Number(plant.ratingTotal) : 0;
+    const ratingCount = plant.ratingCount ? Number(plant.ratingCount) : 0;
+
+    // Validasi data
+    if (isNaN(totalRating) || isNaN(ratingCount)) {
+      throw new Error("Invalid rating data from smart contract");
+    }
 
     // Jika tidak ada rating yang diberikan, rata-rata adalah 0
     const averageRating = ratingCount > 0 ? totalRating / ratingCount : 0;
 
+    // Pastikan rating dalam range yang valid (0-5)
+    const validRating = Math.max(0, Math.min(5, averageRating));
+
     res.json({
       success: true,
-      averageRating: averageRating.toString(), // Mengonversi rata-rata rating menjadi string
+      averageRating: Math.round(validRating * 10) / 10, // Mengonversi rata-rata rating menjadi string
     });
     console.timeEnd("Get Average Rating Time");
   } catch (error) {
