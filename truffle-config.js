@@ -9,9 +9,36 @@ module.exports = {
       port: 7545,
       network_id: "5777",
     },
+    besu: {
+      provider: () => {
+        if (!process.env.PRIVATE_NETWORK_PRIVATE_KEY) {
+          throw new Error(
+            "PRIVATE_NETWORK_PRIVATE_KEY tidak ditemukan di .env untuk jaringan Hyperledger Besu."
+          );
+        }
+        if (!process.env.PRIVATE_NETWORK_RPC_URL) {
+          throw new Error(
+            "PRIVATE_NETWORK_RPC_URL tidak ditemukan di .env untuk jaringan Hyperledger Besu."
+          );
+        }
+
+        return new HDWalletProvider({
+          privateKeys: [process.env.PRIVATE_NETWORK_PRIVATE_KEY],
+          providerOrUrl: process.env.PRIVATE_NETWORK_RPC_URL,
+          chainId: 1337,
+        });
+      },
+      network_id: 1337,
+      gas: 4500000,
+      gasPrice: 0,
+      confirmations: 0,
+      timeoutBlocks: 200,
+      networkCheckTimeout: 60000,
+      deploymentPollingInterval: 8000,
+      skipDryRun: true,
+    },
     tea_sepolia: {
       provider: () => {
-        // Validasi keberadaan private key dan RPC URL
         if (!process.env.PUBLIC_NETWORK_PRIVATE_KEY) {
           throw new Error(
             "PUBLIC_NETWORK_PRIVATE_KEY tidak ditemukan di .env untuk jaringan Tea Sepolia."
@@ -48,6 +75,12 @@ module.exports = {
   compilers: {
     solc: {
       version: "0.8.0",
+      settings: {
+        optimizer: {
+          enabled: true,
+          runs: 200,
+        },
+      },
     },
   },
   contracts_directory: path.join(__dirname, "contracts"),

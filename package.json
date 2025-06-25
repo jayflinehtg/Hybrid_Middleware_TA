@@ -10,7 +10,8 @@
     "dev": "nodemon --legacy-watch server.js",
     "compile": "truffle compile --all",
     "migrate": "truffle migrate --network development",
-    "migrate-public":"truffle migrate --network tea_sepolia",
+    "migrate-public": "truffle migrate --network tea_sepolia",
+    "migrate-besu": "truffle migrate --network besu",
     "test": "jest",
     "test:watch": "jest --watch"
   },

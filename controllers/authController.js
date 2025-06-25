@@ -40,9 +40,6 @@ async function registerUser(walletAddress, fullName, password) {
 
     // Coba ekstrak pesan error spesifik dari smart contract
     if (error && error.message) {
-      // Ini adalah error dari web3.js atau library terkait
-      // Contoh: "ContractExecutionError: Error happened while trying to execute a function inside a smart contract"
-      // Kita perlu mencari pesan "revert" di dalamnya
 
       // Cari pesan dari `revert` statement smart contract
       const revertMatch = error.message.match(/revert (.*)/i);

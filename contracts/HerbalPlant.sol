@@ -19,7 +19,7 @@ contract HerbalPlant {
 
     struct User {
         string fullName;
-        string hashPass;  // Store hashed password
+        string hashPass;
         bool isRegistered;
         bool isLoggedIn;
     }
@@ -32,7 +32,7 @@ contract HerbalPlant {
 
     mapping(uint => Plant) public plants;
     mapping(address => User) private usersByPublicKey;
-    mapping(uint => Comment[]) public plantComments;  // Mapping for plant comments
+    mapping(uint => Comment[]) public plantComments;
     mapping(uint => address[]) public plantRatingUsers;
     mapping(uint => mapping(address => uint)) public plantRatings;
     mapping(uint => mapping(address => bool)) public plantLikes;
@@ -121,7 +121,7 @@ contract HerbalPlant {
     ) public onlyActiveUser {
         require(bytes(name).length > 0, "Nama tanaman diperlukan");
 
-        uint currentId = plantCount; // simpan ID sekarang sebelum increment
+        uint currentId = plantCount;
 
         plants[currentId] = Plant({
             name: name,
@@ -138,7 +138,7 @@ contract HerbalPlant {
             owner: msg.sender
         });
 
-        emit PlantAdded(currentId, name, msg.sender); // gunakan ID yang benar
+        emit PlantAdded(currentId, name, msg.sender);
         plantCount++;
     }
 
@@ -167,7 +167,7 @@ contract HerbalPlant {
         plants[plantId].efekSamping = efekSamping;
         plants[plantId].ipfsHash = ipfsHash;
 
-        emit PlantAdded(plantId, name, msg.sender); // Emit event dengan ID tanaman yang sudah diubah
+        emit PlantAdded(plantId, name, msg.sender);
     }
 
     // 🔹 Memberi rating tanaman herbal (1-5)
@@ -176,20 +176,16 @@ contract HerbalPlant {
     require(rating >= 1 && rating <= 5, "Rating harus antara 1 hingga 5");
 
     uint previousRating = plantRatings[plantId][msg.sender];
-    
-    // Cek apakah ini rating pertama kali dari pengguna atau pembaruan rating
+
     if (previousRating == 0) {
-        // --- rating PERTAMA KALI dari pengguna ---
         plants[plantId].ratingTotal += rating;
         plants[plantId].ratingCount++;
         plantRatingUsers[plantId].push(msg.sender);
     } else {
-        // --- Pengguna MEMPERBARUI ratingnya yang sudah ada ---
         plants[plantId].ratingTotal -= previousRating;
         plants[plantId].ratingTotal += rating;
     }
 
-    // Selalu update rating individu pengguna
     plantRatings[plantId][msg.sender] = rating;
 
     emit PlantRated(plantId, msg.sender, rating);
@@ -221,16 +217,16 @@ contract HerbalPlant {
     function likePlant(uint plantId) public onlyActiveUser {
         require(plants[plantId].owner != address(0), "Tanaman tidak ditemukan");
 
-        // Jika pengguna sudah memberi like sebelumnya, hapus like tersebut
+        // Jika pengguna sudah memberi like sebelumnya
         if (plantLikes[plantId][msg.sender]) {
             plantLikes[plantId][msg.sender] = false;
             plants[plantId].likeCount--;
-            emit PlantLiked(plantId, msg.sender); // Emit event jika perlu
+            emit PlantLiked(plantId, msg.sender);
         } else {
-            // Jika belum memberi like, beri like
+            // Jika belum memberi like
             plantLikes[plantId][msg.sender] = true;
             plants[plantId].likeCount++;
-            emit PlantLiked(plantId, msg.sender); // Emit event jika perlu
+            emit PlantLiked(plantId, msg.sender);
         }
     }
 
@@ -296,42 +292,36 @@ contract HerbalPlant {
     string memory kegunaan
     ) 
     public view
-    returns (uint[] memory, Plant[] memory) // Return 2 array: IDs dan data tanaman
+    returns (uint[] memory, Plant[] memory)
     {
     uint plantIndex = 0;
     uint[] memory idResults = new uint[](plantCount);
     Plant[] memory plantResults = new Plant[](plantCount);
 
-    // Loop melalui semua tanaman yang tersimpan
     for (uint i = 0; i < plantCount; i++) {
         Plant storage currentPlant = plants[i];
         bool isMatch = false;
 
-        // Jika ada salah satu yang cocok, maka isMatch = true
         if (bytes(name).length > 0 && contains(currentPlant.name, name)) isMatch = true;
         if (bytes(namaLatin).length > 0 && contains(currentPlant.namaLatin, namaLatin)) isMatch = true;
         if (bytes(komposisi).length > 0 && contains(currentPlant.komposisi, komposisi)) isMatch = true;
         if (bytes(kegunaan).length > 0 && contains(currentPlant.kegunaan, kegunaan)) isMatch = true;
 
-        // Jika memenuhi kriteria, tambahkan ke hasil
         if (isMatch) {
-            idResults[plantIndex] = i; // Simpan ID tanaman (index)
-            plantResults[plantIndex] = currentPlant; // Simpan data lengkap
+            idResults[plantIndex] = i;
+            plantResults[plantIndex] = currentPlant;
             plantIndex++;
         }
     }
 
-    // Buat array hasil dengan ukuran yang tepat
     uint[] memory finalIds = new uint[](plantIndex);
     Plant[] memory finalPlants = new Plant[](plantIndex);
 
-    // Salin data dari array sementara ke array final
     for (uint i = 0; i < plantIndex; i++) {
         finalIds[i] = idResults[i];
         finalPlants[i] = plantResults[i];
     }
 
-    // Kembalikan sebagai tuple (2 array terpisah)
     return (finalIds, finalPlants);
     }
 
@@ -378,9 +368,9 @@ contract HerbalPlant {
         for (uint i = 0; i < strBytes.length; i++) {
             // Cek apakah karakter adalah A-Z (0x41-0x5A)
             if (strBytes[i] >= 0x41 && strBytes[i] <= 0x5A) {
-                lowerBytes[i] = bytes1(uint8(strBytes[i]) + 32); // Konversi ke lowercase
+                lowerBytes[i] = bytes1(uint8(strBytes[i]) + 32);
             } else {
-                lowerBytes[i] = strBytes[i]; // Pertahankan karakter lain
+                lowerBytes[i] = strBytes[i]; 
             }
         }
         
