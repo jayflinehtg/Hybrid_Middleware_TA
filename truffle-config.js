@@ -33,7 +33,7 @@ module.exports = {
       gasPrice: 0,
       confirmations: 0,
       timeoutBlocks: 200,
-      networkCheckTimeout: 60000,
+      networkCheckTimeout: 100000,
       deploymentPollingInterval: 8000,
       skipDryRun: true,
     },

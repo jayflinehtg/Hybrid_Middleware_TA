@@ -82,7 +82,7 @@ async function initializePublic() {
   return initializationPromise;
 }
 
-// Fungsi untuk mengirim transaksi ke jaringan public (HANYA 1 METODE)
+// Fungsi untuk mengirim transaksi ke jaringan public
 async function sendPublicTransaction(methodCall) {
   try {
     const { web3, account } = await initializePublic();
@@ -109,22 +109,38 @@ async function sendPublicTransaction(methodCall) {
 }
 
 // Fungsi khusus untuk menambahkan plant record ke jaringan public
-async function addPlantRecordToPublic(ganacheTxHash, plantId, userAddress) {
+async function addPlantRecordToPublic(privateTxHash, plantId, userAddress) {
   try {
     console.time("Add Plant Record to Public Time");
+    console.log("Sending transaction to public network...");
 
-    const { contract } = await initializePublic();
+    const TIMEOUT_MS = 30000; 
 
-    // Buat method call
-    const methodCall = contract.methods.addPlantRecord(
-      ganacheTxHash,
-      plantId.toString(), // Pastikan plantId dalam format string
-      userAddress
-    );
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(
+        () => reject(new Error("Public transaction timeout after 30 seconds")),
+        TIMEOUT_MS
+      );
+    });
 
-    // Kirim transaksi menggunakan satu metode saja
-    const tx = await sendPublicTransaction(methodCall);
+    const publicTxPromise = (async () => {
+      const { contract } = await initializePublic();
 
+      // Buat method call
+      const methodCall = contract.methods.addPlantRecord(
+        privateTxHash,
+        plantId.toString(), 
+        userAddress
+      );
+
+      const tx = await sendPublicTransaction(methodCall);
+
+      return tx;
+    })();
+
+    const tx = await Promise.race([publicTxPromise, timeoutPromise]);
+
+    console.log("✅ Public transaction successful:", tx.transactionHash);
     console.timeEnd("Add Plant Record to Public Time");
 
     return {
@@ -134,7 +150,18 @@ async function addPlantRecordToPublic(ganacheTxHash, plantId, userAddress) {
       gasUsed: tx.gasUsed,
     };
   } catch (error) {
-    console.error("❌ Error adding plant record to public network:", error);
+    console.error(
+      "❌ Error adding plant record to public network:",
+      error.message
+    );
+
+    // ✅ Enhanced error handling dengan timeout info
+    if (error.message.includes("timeout")) {
+      console.error(
+        "❌ Public blockchain timeout - Tea Sepolia might be congested"
+      );
+    }
+
     throw error;
   }
 }
@@ -147,7 +174,7 @@ async function getPlantRecordFromPublic(recordId) {
     const record = await contract.methods.getPlantRecord(recordId).call();
 
     return {
-      ganacheTxHash: record.ganacheTxHash,
+      privateTxHash: record.privateTxHash,
       plantId: record.plantId.toString(),
       userAddress: record.userAddress,
       timestamp: record.timestamp.toString(),
@@ -169,7 +196,7 @@ async function getAllPublicRecords() {
     const record = await contract.methods.getPlantRecord(i).call();
     records.push({
       recordId: i.toString(),
-      ganacheTxHash: record.ganacheTxHash,
+      privateTxHash: record.privateTxHash,
       plantId: record.plantId.toString(),
       userAddress: record.userAddress,
       timestamp: record.timestamp.toString(),
@@ -179,54 +206,57 @@ async function getAllPublicRecords() {
   return records;
 }
 
-// Fungsi untuk mendapatkan transaction history berdasarkan plantId dengan pagination
 async function getPlantTransactionHistory(plantId, page = 1, limit = 10) {
   try {
     const { contract } = await initializePublic();
     const totalRecords = await contract.methods.recordCount().call();
     const total = parseInt(totalRecords.toString());
-    
+
     // Filter records berdasarkan plantId
     const plantRecords = [];
-    
+
     for (let i = 0; i < total; i++) {
       const record = await contract.methods.getPlantRecord(i).call();
-      
+
       // Filter hanya record yang sesuai dengan plantId
       if (record.plantId.toString() === plantId.toString()) {
         plantRecords.push({
           recordId: i.toString(),
-          ganacheTxHash: record.ganacheTxHash,
+          privateTxHash: record.privateTxHash,
           plantId: record.plantId.toString(),
           userAddress: record.userAddress,
           timestamp: record.timestamp.toString(),
         });
       }
     }
-    
+
     // Sort berdasarkan timestamp (terbaru dulu)
     plantRecords.sort((a, b) => parseInt(b.timestamp) - parseInt(a.timestamp));
-    
+
     // Implementasi pagination
     const startIndex = (page - 1) * limit;
     const endIndex = startIndex + limit;
     const paginatedRecords = plantRecords.slice(startIndex, endIndex);
-    
+
     // Tentukan jenis transaksi berdasarkan urutan
     const recordsWithType = paginatedRecords.map((record, index) => {
-      // Record pertama (berdasarkan timestamp terlama) adalah "Add Plant"
-      // Record selanjutnya adalah "Edit Plant"
-      const allRecordsForPlant = plantRecords.filter(r => r.plantId === record.plantId);
-      const sortedByTimestamp = allRecordsForPlant.sort((a, b) => parseInt(a.timestamp) - parseInt(b.timestamp));
-      const recordIndex = sortedByTimestamp.findIndex(r => r.recordId === record.recordId);
-      
+      const allRecordsForPlant = plantRecords.filter(
+        (r) => r.plantId === record.plantId
+      );
+      const sortedByTimestamp = allRecordsForPlant.sort(
+        (a, b) => parseInt(a.timestamp) - parseInt(b.timestamp)
+      );
+      const recordIndex = sortedByTimestamp.findIndex(
+        (r) => r.recordId === record.recordId
+      );
+
       return {
         ...record,
         transactionType: recordIndex === 0 ? "Add Plant" : "Edit Plant",
-        icon: recordIndex === 0 ? "🌱" : "✏️"
+        icon: recordIndex === 0 ? "🌱" : "✏️",
       };
     });
-    
+
     return {
       records: recordsWithType,
       pagination: {
@@ -234,8 +264,8 @@ async function getPlantTransactionHistory(plantId, page = 1, limit = 10) {
         totalPages: Math.ceil(plantRecords.length / limit),
         totalRecords: plantRecords.length,
         hasNextPage: endIndex < plantRecords.length,
-        hasPreviousPage: page > 1
-      }
+        hasPreviousPage: page > 1,
+      },
     };
   } catch (error) {
     console.error("❌ Error getting plant transaction history:", error);

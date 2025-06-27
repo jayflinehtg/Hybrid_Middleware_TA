@@ -6,7 +6,7 @@ contract HerbalPlant {
         string name;
         string namaLatin;
         string komposisi;
-        string kegunaan;
+        string manfaat;
         string dosis;
         string caraPengolahan;
         string efekSamping;
@@ -113,7 +113,7 @@ contract HerbalPlant {
         string memory name,
         string memory namaLatin,
         string memory komposisi,
-        string memory kegunaan,
+        string memory manfaat,
         string memory dosis,
         string memory caraPengolahan,
         string memory efekSamping,
@@ -127,7 +127,7 @@ contract HerbalPlant {
             name: name,
             namaLatin: namaLatin,
             komposisi: komposisi,
-            kegunaan: kegunaan,
+            manfaat: manfaat,
             dosis: dosis,
             caraPengolahan: caraPengolahan,
             efekSamping: efekSamping,
@@ -148,7 +148,7 @@ contract HerbalPlant {
         string memory name,
         string memory namaLatin,
         string memory komposisi,
-        string memory kegunaan,
+        string memory manfaat,
         string memory dosis,
         string memory caraPengolahan,
         string memory efekSamping,
@@ -161,7 +161,7 @@ contract HerbalPlant {
         plants[plantId].name = name;
         plants[plantId].namaLatin = namaLatin;
         plants[plantId].komposisi = komposisi;
-        plants[plantId].kegunaan = kegunaan;
+        plants[plantId].manfaat = manfaat;
         plants[plantId].dosis = dosis;
         plants[plantId].caraPengolahan = caraPengolahan;
         plants[plantId].efekSamping = efekSamping;
@@ -255,7 +255,7 @@ contract HerbalPlant {
         string memory name,
         string memory namaLatin,
         string memory komposisi,
-        string memory kegunaan,
+        string memory manfaat,
         string memory dosis,
         string memory caraPengolahan,
         string memory efekSamping,
@@ -272,7 +272,7 @@ contract HerbalPlant {
             plant.name,
             plant.namaLatin,
             plant.komposisi,
-            plant.kegunaan,
+            plant.manfaat,
             plant.dosis,
             plant.caraPengolahan,
             plant.efekSamping,
@@ -284,12 +284,12 @@ contract HerbalPlant {
         );
     }
 
-    // 🔹 Fungsi untuk mencari tanaman berdasarkan nama, nama latin, komposisi, atau kegunaan
+    // 🔹 Fungsi untuk mencari tanaman berdasarkan nama, nama latin, komposisi, atau manfaat
     function searchPlants(
     string memory name, 
     string memory namaLatin, 
     string memory komposisi, 
-    string memory kegunaan
+    string memory manfaat
     ) 
     public view
     returns (uint[] memory, Plant[] memory)
@@ -305,7 +305,7 @@ contract HerbalPlant {
         if (bytes(name).length > 0 && contains(currentPlant.name, name)) isMatch = true;
         if (bytes(namaLatin).length > 0 && contains(currentPlant.namaLatin, namaLatin)) isMatch = true;
         if (bytes(komposisi).length > 0 && contains(currentPlant.komposisi, komposisi)) isMatch = true;
-        if (bytes(kegunaan).length > 0 && contains(currentPlant.kegunaan, kegunaan)) isMatch = true;
+        if (bytes(manfaat).length > 0 && contains(currentPlant.manfaat, manfaat)) isMatch = true;
 
         if (isMatch) {
             idResults[plantIndex] = i;
