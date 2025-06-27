@@ -70,7 +70,7 @@ async function initialize() {
       }
 
       console.log("Blockchain berhasil diinisialisasi.");
-      return { contract };
+      return { contract, web3 };
     } catch (error) {
       initializationPromise = null;
       throw error;

@@ -2,7 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const FormData = require("form-data");
 const fetch = require("node-fetch");
-const { verifyToken } = require("../jwtMiddleware.js"); // Middleware untuk autentikasi JWT
+const { verifyToken, requireFreshToken } = require("../jwtMiddleware.js"); // Middleware untuk autentikasi JWT
 
 const router = express.Router();
 
@@ -26,7 +26,7 @@ async function addFileToIPFS(fileBuffer) {
     const form = new FormData();
     form.append("file", fileBuffer, "file");
 
-    const response = await fetch("http://192.168.1.101:5001/api/v0/add", {
+    const response = await fetch("http://172.27.80.247:5001/api/v0/add", {
       method: "POST",
       body: form,
       headers: form.getHeaders(),
@@ -54,7 +54,8 @@ async function addFileToIPFS(fileBuffer) {
 // Endpoint untuk meng-upload file ke IPFS
 router.post(
   "/upload",
-  verifyToken, // Pastikan hanya pengguna yang terautentikasi yang bisa upload
+  verifyToken,
+  requireFreshToken,
   upload.single("file"), // Menggunakan multer untuk menangani file upload
   async (req, res) => {
     try {
@@ -95,7 +96,7 @@ async function getFileFromIPFS(cid) {
     const form = new FormData();
     form.append("arg", cid);
 
-    const response = await fetch("http://192.168.1.101:5001/api/v0/cat", {
+    const response = await fetch("http://172.27.80.247:5001/api/v0/cat", {
       method: "POST",
       body: form,
       headers: form.getHeaders(),

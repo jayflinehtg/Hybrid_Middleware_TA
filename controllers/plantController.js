@@ -51,7 +51,7 @@ async function addPlantData(req, res) {
       name,
       namaLatin,
       komposisi,
-      kegunaan,
+      manfaat,
       dosis,
       caraPengolahan,
       efekSamping,
@@ -74,7 +74,7 @@ async function addPlantData(req, res) {
       name,
       namaLatin,
       komposisi,
-      kegunaan,
+      manfaat,
       dosis,
       caraPengolahan,
       efekSamping,
@@ -95,7 +95,7 @@ async function addPlantData(req, res) {
         name,
         namaLatin,
         komposisi,
-        kegunaan,
+        manfaat,
         dosis,
         caraPengolahan,
         efekSamping,
@@ -225,7 +225,7 @@ async function editPlant(req, res) {
       name,
       namaLatin,
       komposisi,
-      kegunaan,
+      manfaat,
       dosis,
       caraPengolahan,
       efekSamping,
@@ -273,7 +273,7 @@ async function editPlant(req, res) {
       name,
       namaLatin,
       komposisi,
-      kegunaan,
+      manfaat,
       dosis,
       caraPengolahan,
       efekSamping,
@@ -295,7 +295,7 @@ async function editPlant(req, res) {
         name,
         namaLatin,
         komposisi,
-        kegunaan,
+        manfaat,
         dosis,
         caraPengolahan,
         efekSamping,
@@ -445,7 +445,7 @@ async function getPlant(req, res) {
         name: plant.name,
         namaLatin: plant.namaLatin,
         komposisi: plant.komposisi,
-        kegunaan: plant.kegunaan,
+        manfaat: plant.manfaat,
         dosis: plant.dosis,
         caraPengolahan: plant.caraPengolahan,
         efekSamping: plant.efekSamping,
@@ -690,7 +690,7 @@ async function getAllPlants(req, res) {
         name: plant.name || "Tidak Diketahui",
         namaLatin: plant.namaLatin || "Tidak Diketahui",
         komposisi: plant.komposisi || "Tidak Diketahui",
-        kegunaan: plant.kegunaan || "Tidak Diketahui",
+        manfaat: plant.manfaat || "Tidak Diketahui",
         dosis: plant.dosis || "Tidak Diketahui",
         caraPengolahan: plant.caraPengolahan || "Tidak Diketahui",
         efekSamping: plant.efekSamping || "Tidak Diketahui",
@@ -722,17 +722,17 @@ async function getAllPlants(req, res) {
   }
 }
 
-// Fungsi untuk mencari tanaman berdasarkan nama, nama latin, komposisi, atau kegunaan
+// Fungsi untuk mencari tanaman berdasarkan nama, nama latin, komposisi, atau manfaat
 async function searchPlants(req, res) {
   try {
     console.time("Search Plant Time");
-    const { name, namaLatin, komposisi, kegunaan } = req.query;
+    const { name, namaLatin, komposisi, manfaat } = req.query;
 
     // Validasi parameter
     const validatedName = typeof name === "string" ? name : "";
     const validatedNamaLatin = typeof namaLatin === "string" ? namaLatin : "";
     const validatedKomposisi = typeof komposisi === "string" ? komposisi : "";
-    const validatedKegunaan = typeof kegunaan === "string" ? kegunaan : "";
+    const validatedmanfaat = typeof manfaat === "string" ? manfaat : "";
 
     const { contract } = await initialize();
 
@@ -742,7 +742,7 @@ async function searchPlants(req, res) {
         validatedName,
         validatedNamaLatin,
         validatedKomposisi,
-        validatedKegunaan
+        validatedmanfaat
       )
       .call();
 
@@ -759,7 +759,7 @@ async function searchPlants(req, res) {
       name: plant.name || "Tidak Diketahui",
       namaLatin: plant.namaLatin || "Tidak Diketahui",
       komposisi: plant.komposisi || "Tidak Diketahui",
-      kegunaan: plant.kegunaan || "Tidak Diketahui",
+      manfaat: plant.manfaat || "Tidak Diketahui",
       dosis: plant.dosis || "Tidak Diketahui", // Menambahkan dosis
       caraPengolahan: plant.caraPengolahan || "Tidak Diketahui",
       efekSamping: plant.efekSamping || "Tidak Diketahui", // Menambahkan efek samping

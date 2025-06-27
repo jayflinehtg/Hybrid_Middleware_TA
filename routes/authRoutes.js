@@ -6,7 +6,7 @@ const {
   isUserLoggedIn,
   getUserData,
 } = require("../controllers/authController.js");
-const { verifyToken } = require("../jwtMiddleware.js");
+const { verifyToken, requireFreshToken } = require("../jwtMiddleware.js");
 
 const router = express.Router();
 
@@ -45,7 +45,7 @@ router.get("/user/:walletAddress", async (req, res) => {
 });
 
 // Rute untuk logout (memerlukan token)
-router.post("/logout", verifyToken, async (req, res) => {
+router.post("/logout", verifyToken, requireFreshToken, async (req, res) => {
   try {
     const token = req.headers.authorization?.split(" ")[1];
     const result = await logoutUser(token);
@@ -56,7 +56,7 @@ router.post("/logout", verifyToken, async (req, res) => {
 });
 
 // Rute untuk memeriksa status login pengguna (memerlukan token)
-router.get("/isLoggedIn", verifyToken, async (req, res) => {
+router.get("/isLoggedIn", verifyToken, requireFreshToken, async (req, res) => {
   try {
     const userAddress = req.user.publicKey;
     const isLoggedIn = await isUserLoggedIn(userAddress);
