@@ -250,6 +250,11 @@ contract HerbalPlant {
         emit PlantCommented(plantId, msg.sender, comment);
     }
 
+    // 🔹 Mendapatkan jumlah komentar pada tanaman tertentu
+    function getPlantCommentCount(uint plantId) public view returns (uint) {
+        return plantComments[plantId].length;
+    }
+
     // 🔹 Mengambil detail tanaman herbal (Semua informasi dalam satu fungsi)
     function getPlant(uint plantId) public view returns (
         string memory name,
