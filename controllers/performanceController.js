@@ -1035,7 +1035,7 @@ async function performanceAddFileToIPFS(req, res) {
     const form = new FormData();
     form.append("file", req.file.buffer, "performance-test-file");
 
-    const response = await fetch("http://172.27.80.247:5001/api/v0/add", {
+    const response = await fetch("http://172.21.200.103:5001/api/v0/add", {
       method: "POST",
       body: form,
       headers: form.getHeaders(),
@@ -1111,7 +1111,7 @@ async function performanceGetFileFromIPFS(req, res) {
     const form = new FormData();
     form.append("arg", cid);
 
-    const response = await fetch("http://172.27.80.247:5001/api/v0/cat", {
+    const response = await fetch("http://172.21.200.103:5001/api/v0/cat", {
       method: "POST",
       body: form,
       headers: form.getHeaders(),
