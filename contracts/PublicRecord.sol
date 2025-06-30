@@ -2,6 +2,8 @@
 pragma solidity ^0.8.0;
 
 contract PublicRecord {
+    address public owner;
+
     struct PlantRecord {
         string privateTxHash;
         uint256 plantId;
@@ -19,6 +21,11 @@ contract PublicRecord {
         address userAddress,
         uint256 timestamp
     );
+    event PlantRecordUpdated(uint256 indexed recordId, string txHash);
+
+    constructor() {
+        owner = msg.sender;
+    }
     
     function addPlantRecord(
         string memory privateTxHash,
@@ -41,6 +48,18 @@ contract PublicRecord {
         );
         
         recordCount++;
+    }
+
+    // Update Transaction Hash
+    function updatePlantRecordHash(uint256 recordId, string memory txHash) public {
+        require(recordId < recordCount, "Record tidak ditemukan");
+        require(
+            plantRecords[recordId].userAddress == msg.sender || msg.sender == owner, 
+            "Hanya pemilik record atau owner yang dapat update"
+        );
+        
+        plantRecords[recordId].privateTxHash = txHash;
+        emit PlantRecordUpdated(recordId, txHash);
     }
     
     function getPlantRecord(uint256 recordId) public view returns (

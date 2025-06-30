@@ -197,7 +197,7 @@ async function performanceAddPlant(req, res) {
       try {
         console.log("🔍 Testing hybrid blockchain flow...");
 
-        // Verify transaction in Besu (fast)
+        // verifikasi transaksi di Besu
         const verification = await verifyTransactionInBesu(
           receipt.transactionHash,
           "PlantAdded(uint256,string,address)"
@@ -340,7 +340,7 @@ async function performanceEditPlant(req, res) {
       try {
         console.log("🔍 Testing hybrid blockchain flow for edit...");
 
-        // Verify transaction in Besu
+        // verifikasi transaksi di Besu
         const verification = await verifyTransactionInBesu(
           receipt.transactionHash,
           "PlantAdded(uint256,string,address)"
@@ -351,7 +351,7 @@ async function performanceEditPlant(req, res) {
           "⏳ Attempting to save edit record to public blockchain (30s timeout)..."
         );
 
-        // Save to public blockchain
+        // menyimpan ke public blockchain
         try {
           const publicResult = await addPlantRecordToPublic(
             receipt.transactionHash,
@@ -575,7 +575,7 @@ async function performanceSearchPlants(req, res) {
     );
     console.time("Performance Search Plant Time");
 
-    // Validasi parameter seperti di searchPlants original
+    // Validasi parameter
     const validatedName = typeof name === "string" ? name : "";
     const validatedNamaLatin = typeof namaLatin === "string" ? namaLatin : "";
     const validatedKomposisi = typeof komposisi === "string" ? komposisi : "";
@@ -584,7 +584,7 @@ async function performanceSearchPlants(req, res) {
     const { contract } = await initialize();
     const startTime = Date.now();
 
-    // Panggil fungsi searchPlants dari kontrak (sama seperti original)
+    // Panggil fungsi searchPlants dari kontrak
     const result = await contract.methods
       .searchPlants(
         validatedName,
@@ -601,7 +601,7 @@ async function performanceSearchPlants(req, res) {
     const plantIds = result[0] || [];
     const plants = result[1] || [];
 
-    // Format data untuk response (sama seperti original)
+    // Format data untuk response
     const formattedPlants = plants.map((plant, index) => ({
       plantId: plantIds[index]?.toString() || "N/A",
       name: plant.name || "Tidak Diketahui",
@@ -669,17 +669,17 @@ async function performanceGetAllPlants(req, res) {
     const { contract } = await initialize();
     const startTime = Date.now();
 
-    // Konversi BigInt ke Number dengan aman (sama seperti original)
+    // Konversi BigInt ke Number
     const totalPlantsBigInt = await contract.methods.plantCount().call();
     const totalPlants = parseInt(totalPlantsBigInt.toString());
 
-    // Paginasi (sama seperti original)
+    // Paginasi
     const currentPage = parseInt(page) || 1;
     const pageSize = parseInt(limit) || 10;
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = Math.min(startIndex + pageSize, totalPlants);
 
-    // Ambil semua tanaman dengan filter paginasi (sama seperti original)
+    // Ambil semua tanaman dengan filter paginasi
     const plants = [];
     for (let i = startIndex; i < endIndex; i++) {
       const plant = await contract.methods.getPlant(i).call();
@@ -733,7 +733,7 @@ async function performanceGetAllPlants(req, res) {
 async function performanceGetPlant(req, res) {
   try {
     const { userId } = req.body;
-    const { plantId } = req.params; // Ambil plantId dari params seperti original
+    const { plantId } = req.params;
 
     const testAccount = getTestAccountFromWallet(userId);
     if (!testAccount) {
@@ -754,10 +754,10 @@ async function performanceGetPlant(req, res) {
     const { contract } = await initialize();
     const startTime = Date.now();
 
-    // Mengambil data tanaman herbal dari smart contract (sama seperti original)
+    // Mengambil data tanaman herbal dari smart contract
     const plant = await contract.methods.getPlant(plantId).call();
 
-    // Check apakah plant dilike oleh test user (sama seperti original)
+    // Check apakah plant dilike oleh test user
     let isLikedByUser = false;
     if (userAddress) {
       isLikedByUser = await contract.methods
@@ -765,7 +765,7 @@ async function performanceGetPlant(req, res) {
         .call();
     }
 
-    // Mengonversi nilai yang mungkin BigInt ke string (sama seperti original)
+    // Mengonversi nilai BigInt ke string
     const plantIdString = plantId.toString();
     const ratingTotalString = plant.ratingTotal.toString();
     const ratingCountString = plant.ratingCount.toString();
@@ -786,11 +786,11 @@ async function performanceGetPlant(req, res) {
         caraPengolahan: plant.caraPengolahan,
         efekSamping: plant.efekSamping,
         ipfsHash: plant.ipfsHash,
-        ratingTotal: ratingTotalString, // Mengonversi BigInt menjadi string
-        ratingCount: ratingCountString, // Mengonversi BigInt menjadi string
-        likeCount: likeCountString, // Mengonversi BigInt menjadi string
+        ratingTotal: ratingTotalString,
+        ratingCount: ratingCountString,
+        likeCount: likeCountString,
         owner: plant.owner,
-        plantId: plantIdString, // Mengembalikan plantId sebagai string
+        plantId: plantIdString,
         isLikedByUser,
       },
       testUser: testAccount.fullName,
@@ -813,7 +813,7 @@ async function performanceGetPlant(req, res) {
 async function performanceGetPlantRatings(req, res) {
   try {
     const { userId } = req.body;
-    const { plantId } = req.params; // Ambil plantId dari params seperti original
+    const { plantId } = req.params;
 
     const testAccount = getTestAccountFromWallet(userId);
     if (!testAccount) {
@@ -831,10 +831,10 @@ async function performanceGetPlantRatings(req, res) {
     const { contract } = await initialize();
     const startTime = Date.now();
 
-    // Mengambil data ratings dari smart contract berdasarkan plantId (sama seperti original)
+    // Mengambil data ratings dari smart contract berdasarkan plantId
     const ratings = await contract.methods.getPlantRatings(plantId).call();
 
-    // Mengonversi ratings menjadi array angka (sama seperti original)
+    // Mengonversi ratings menjadi array angka
     const ratingsArray = ratings.map((rating) => Number(rating));
 
     const endTime = Date.now();
@@ -844,7 +844,7 @@ async function performanceGetPlantRatings(req, res) {
       success: true,
       message: "Performance test get plant ratings completed successfully",
       plantId: plantId,
-      ratings: ratingsArray, // Mengembalikan ratings dalam bentuk array seperti original
+      ratings: ratingsArray, // Mengembalikan ratings dalam bentuk array
       ratingsCount: ratingsArray.length,
       testUser: testAccount.fullName,
       executionTime: executionTime,
@@ -935,7 +935,7 @@ async function performanceGetComments(req, res) {
 async function performanceGetAverageRating(req, res) {
   try {
     const { userId } = req.body;
-    const { plantId } = req.params; // Ambil plantId dari params seperti original
+    const { plantId } = req.params;
 
     const testAccount = getTestAccountFromWallet(userId);
     if (!testAccount) {
@@ -953,22 +953,22 @@ async function performanceGetAverageRating(req, res) {
     const { contract } = await initialize();
     const startTime = Date.now();
 
-    // Mengambil total rating dan jumlah rating yang diberikan pada tanaman (sama seperti original)
+    // Mengambil total rating dan jumlah rating yang diberikan pada tanaman
     const plant = await contract.methods.getPlant(plantId).call();
 
-    // Menghitung rata-rata rating dan error handling (sama seperti original)
+    // Menghitung rata-rata rating dan error handling
     const totalRating = plant.ratingTotal ? Number(plant.ratingTotal) : 0;
     const ratingCount = plant.ratingCount ? Number(plant.ratingCount) : 0;
 
-    // Validasi data (sama seperti original)
+    // Validasi data
     if (isNaN(totalRating) || isNaN(ratingCount)) {
       throw new Error("Invalid rating data from smart contract");
     }
 
-    // Jika tidak ada rating yang diberikan, rata-rata adalah 0 (sama seperti original)
+    // Jika tidak ada rating yang diberikan, rata-rata adalah 0
     const averageRating = ratingCount > 0 ? totalRating / ratingCount : 0;
 
-    // Pastikan rating dalam range yang valid (0-5) (sama seperti original)
+    // Pastikan rating dalam range yang valid (0-5)
     const validRating = Math.max(0, Math.min(5, averageRating));
 
     const endTime = Date.now();
@@ -978,7 +978,7 @@ async function performanceGetAverageRating(req, res) {
       success: true,
       message: "Performance test get average rating completed successfully",
       plantId: plantId,
-      averageRating: Math.round(validRating * 10) / 10, // Sama seperti original
+      averageRating: Math.round(validRating * 10) / 10,
       testUser: testAccount.fullName,
       executionTime: executionTime,
       operation: "getAverageRating",
@@ -1190,7 +1190,7 @@ async function verifyTransactionInBesu(txHash, expectedEventSignature = null) {
           contractEvents.map((log) => log.topics[0])
         );
 
-        // ✅ DEBUG: Show what events were actually emitted
+        // Show what events were actually emitted
         contractEvents.forEach((log, index) => {
           console.log(`Event ${index}: ${log.topics[0]}`);
         });
@@ -1331,7 +1331,7 @@ async function performanceGetPlantTransactionHistory(req, res) {
     } = require("../utils/publicBlockchain.js");
     const startTime = Date.now();
 
-    const result = await getPlantTransactionHistory(plantId, 1, 100); // Get all records
+    const result = await getPlantTransactionHistory(plantId, 1, 100);
 
     const endTime = Date.now();
     const executionTime = endTime - startTime;

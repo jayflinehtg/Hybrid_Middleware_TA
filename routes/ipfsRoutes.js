@@ -2,7 +2,7 @@ const express = require("express");
 const multer = require("multer");
 const FormData = require("form-data");
 const fetch = require("node-fetch");
-const { verifyToken, requireFreshToken } = require("../jwtMiddleware.js"); // Middleware untuk autentikasi JWT
+const { verifyToken, requireFreshToken } = require("../jwtMiddleware.js");
 
 const router = express.Router();
 
@@ -56,7 +56,7 @@ router.post(
   "/upload",
   verifyToken,
   requireFreshToken,
-  upload.single("file"), // Menggunakan multer untuk menangani file upload
+  upload.single("file"),
   async (req, res) => {
     try {
       if (!req.file) {
@@ -89,7 +89,7 @@ router.post(
   }
 );
 
-// Fungsi untuk mengambil file dari IPFS (dibiarkan seperti sebelumnya)
+// Fungsi untuk mengambil file dari IPFS
 async function getFileFromIPFS(cid) {
   try {
     console.time("Get Image from IPFS Time");
@@ -134,4 +134,4 @@ router.get("/getFile/:cid", async (req, res) => {
   }
 });
 
-module.exports = router; // Ekspor router untuk digunakan
+module.exports = router;

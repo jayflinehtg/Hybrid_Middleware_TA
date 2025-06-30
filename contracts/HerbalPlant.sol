@@ -345,7 +345,7 @@ contract HerbalPlant {
         bytes memory haystackLower = bytes(toLowerCase(haystack));
         bytes memory needleLower = bytes(toLowerCase(needle));
 
-        // Optimasi: Batasi jumlah iterasi yang diperlukan
+        // Batasi jumlah iterasi yang diperlukan
         uint maxIterations = haystackLower.length - needleLower.length + 1;
         
         for (uint i = 0; i < maxIterations; i++) {

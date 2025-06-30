@@ -1,6 +1,10 @@
 const { initialize } = require("../utils/blockchain.js");
 const { isUserLoggedIn, getUserData } = require("./authController.js");
-const { addPlantRecordToPublic } = require("../utils/publicBlockchain.js");
+const {
+  addPlantRecordToPublic,
+  updatePlantRecordHash,
+  initializePublic,
+} = require("../utils/publicBlockchain.js");
 
 async function verifyTransactionInBesu(txHash, expectedEventSignature) {
   try {
@@ -116,7 +120,6 @@ async function confirmAddPlant(req, res) {
     console.time("Confirm Add Plant Time");
     const { privateTxHash, plantId, userAddress } = req.body;
 
-    // Validasi input
     if (!privateTxHash || !plantId || !userAddress) {
       return res.status(400).json({
         success: false,
@@ -124,85 +127,155 @@ async function confirmAddPlant(req, res) {
       });
     }
 
-    // verifikasi transaksi apakah ada dan valid di Besu
-    console.log("🔍 Memverifikasi transaksi di Hyperledger Besu...");
-
     try {
-      const verificationResult = await verifyTransactionInBesu(
-        privateTxHash,
-        "PlantAdded(uint256,address,string)" // Event signature untuk add plant
+      // Dapatkan recordId yang benar sebelum membuat record
+      const { contract: publicContract } = await initializePublic();
+      const currentRecordCount = await publicContract.methods
+        .recordCount()
+        .call();
+      const recordId = parseInt(currentRecordCount.toString());
+
+      console.log(
+        `📡 Membuat record awal di jaringan public dengan recordId: ${recordId}`
       );
 
-      console.log("✅ Transaksi terverifikasi:", verificationResult);
-
-      // verifikasi transaksi apakah ada dan valid di Besu
-      if (verificationResult.from.toLowerCase() !== userAddress.toLowerCase()) {
-        return res.status(400).json({
-          success: false,
-          message: "User address tidak sesuai dengan pengirim transaksi",
-          details: {
-            expected: userAddress,
-            actual: verificationResult.from,
-          },
-        });
-      }
-    } catch (verificationError) {
-      console.error("❌ Verification failed:", verificationError.message);
-      return res.status(400).json({
-        success: false,
-        message: `Verifikasi transaksi gagal: ${verificationError.message}`,
-        verified: false,
-      });
-    }
-
-    const plantIdString = plantId.toString();
-
-    // Melakukan penyimpanan record ke jaringan public
-    try {
-      console.log("📡 Menyimpan record ke jaringan public...");
-
+      // Buat record awal di jaringan public
       const publicResult = await addPlantRecordToPublic(
-        privateTxHash,
-        plantIdString,
+        "pending",
+        plantId.toString(),
         userAddress
       );
 
       console.log(
-        "✅ Record berhasil disimpan ke jaringan public:",
-        publicResult.publicTxHash
+        `✅ Record awal berhasil dibuat dengan recordId: ${recordId}`
       );
-      console.timeEnd("Confirm Add Plant Time");
 
-      res.json({
-        success: true,
-        message: "Tanaman berhasil ditambahkan dan diverifikasi",
-        besu: {
-          txHash: privateTxHash,
-          plantId: plantIdString,
-          verified: true,
-        },
-        public: {
-          txHash: publicResult.publicTxHash,
-          blockNumber: publicResult.blockNumber,
-          gasUsed: publicResult.gasUsed,
-        },
-      });
+      // Verifikasi transaksi di Hyperledger Besu dengan retry
+      let transactionVerified = false;
+      let retryCount = 0;
+      const maxRetries = 10;
+      const retryDelay = 2000;
+
+      while (!transactionVerified && retryCount < maxRetries) {
+        try {
+          console.log(
+            `🔍 Mencoba verifikasi transaksi (attempt ${
+              retryCount + 1
+            }/${maxRetries})`
+          );
+
+          const { contract, web3 } = await initialize();
+
+          const receipt = await web3.eth.getTransactionReceipt(privateTxHash);
+
+          if (receipt && receipt.status) {
+            console.log("✅ Transaksi berhasil diverifikasi!");
+            transactionVerified = true;
+
+            // Update record dengan privateTxHash yang benar
+            try {
+              const updateResult = await updatePlantRecordHash(
+                recordId,
+                privateTxHash
+              );
+
+              console.log(
+                "✅ Record berhasil diupdate dengan privateTxHash yang benar"
+              );
+              console.timeEnd("Confirm Add Plant Time");
+
+              return res.json({
+                success: true,
+                message:
+                  "Tanaman berhasil ditambahkan ke Hyperledger Besu dan record disimpan ke jaringan public",
+                besu: {
+                  txHash: privateTxHash,
+                  plantId: plantId.toString(),
+                },
+                public: {
+                  txHash: publicResult.publicTxHash,
+                  updateTxHash: updateResult.updateTxHash,
+                  recordId: recordId.toString(),
+                  blockNumber: publicResult.blockNumber,
+                  gasUsed: publicResult.gasUsed,
+                },
+              });
+            } catch (updateError) {
+              console.error("❌ Error updating record hash:", updateError);
+              return res.json({
+                success: true,
+                message:
+                  "Tanaman berhasil ditambahkan, record dibuat tapi gagal update hash",
+                besu: {
+                  txHash: privateTxHash,
+                  plantId: plantId.toString(),
+                },
+                public: {
+                  txHash: publicResult.publicTxHash,
+                  recordId: recordId.toString(),
+                  blockNumber: publicResult.blockNumber,
+                  gasUsed: publicResult.gasUsed,
+                },
+                warning:
+                  "Record hash belum diupdate dengan privateTxHash yang benar",
+              });
+            }
+          } else if (receipt && !receipt.status) {
+            return res.status(400).json({
+              success: false,
+              message: "Transaksi gagal dieksekusi di Hyperledger Besu",
+            });
+          } else {
+            console.log(
+              `⏳ Transaksi belum ter-mine, menunggu ${
+                retryDelay / 1000
+              } detik`
+            );
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
+            retryCount++;
+          }
+        } catch (verifyError) {
+          console.log(
+            `⚠️ Error verifying transaction (attempt ${retryCount + 1}): ${
+              verifyError.message
+            }`
+          );
+          retryCount++;
+
+          if (retryCount < maxRetries) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          }
+        }
+      }
+
+      // Jika verifikasi gagal setelah semua retry
+      if (!transactionVerified) {
+        return res.json({
+          success: true,
+          message:
+            "Record dibuat di jaringan public, tapi verifikasi transaksi private gagal",
+          besu: {
+            txHash: privateTxHash,
+            plantId: plantId.toString(),
+          },
+          public: {
+            txHash: publicResult.publicTxHash,
+            recordId: recordId.toString(),
+            blockNumber: publicResult.blockNumber,
+            gasUsed: publicResult.gasUsed,
+          },
+          warning:
+            "Transaksi private tidak dapat diverifikasi, record hash mungkin tidak akurat",
+        });
+      }
     } catch (publicError) {
-      console.error("❌ Error menyimpan ke jaringan public:", publicError);
-
-      // Transaksi Besu valid tapi public gagal
-      res.json({
-        success: true,
-        message:
-          "Tanaman berhasil ditambahkan dan diverifikasi, tetapi gagal menyimpan record ke jaringan public",
-        besu: {
-          txHash: privateTxHash,
-          plantId: plantIdString,
-          verified: true,
-        },
-        publicError: publicError.message,
-        warning:
-          "Data tersimpan di Hyperledger Besu tetapi tidak tersinkronisasi ke jaringan public",
+      console.error(
+        "❌ Error creating record in public blockchain:",
+        publicError
+      );
+      return res.status(500).json({
+        success: false,
+        message: `Gagal membuat record di jaringan public: ${publicError.message}`,
       });
     }
   } catch (error) {
@@ -316,7 +389,6 @@ async function confirmEditPlant(req, res) {
     console.time("Confirm Edit Plant Time");
     const { privateTxHash, plantId, userAddress } = req.body;
 
-    // Validasi input
     if (!privateTxHash || !plantId || !userAddress) {
       return res.status(400).json({
         success: false,
@@ -324,83 +396,155 @@ async function confirmEditPlant(req, res) {
       });
     }
 
-    // verifikasi transaksi apakah ada dan valid di Besu
-    console.log("🔍 Memverifikasi transaksi edit di Hyperledger Besu...");
-
     try {
-      const verificationResult = await verifyTransactionInBesu(
-        privateTxHash,
-        "PlantEdited(uint256,address)"
+      // Dapatkan recordId yang benar sebelum membuat record
+      const { contract: publicContract } = await initializePublic();
+      const currentRecordCount = await publicContract.methods
+        .recordCount()
+        .call();
+      const recordId = parseInt(currentRecordCount.toString());
+
+      console.log(
+        `📡 Membuat record edit di jaringan public dengan recordId: ${recordId}`
       );
 
-      console.log("✅ Transaksi edit terverifikasi:", verificationResult);
-
-      // verifikasi apakah userAddress sesuai dengan yang melakukan transaksi
-      if (verificationResult.from.toLowerCase() !== userAddress.toLowerCase()) {
-        return res.status(400).json({
-          success: false,
-          message: "User address tidak sesuai dengan pengirim transaksi edit",
-          details: {
-            expected: userAddress,
-            actual: verificationResult.from,
-          },
-        });
-      }
-    } catch (verificationError) {
-      console.error("❌ Edit verification failed:", verificationError.message);
-      return res.status(400).json({
-        success: false,
-        message: `Verifikasi transaksi edit gagal: ${verificationError.message}`,
-        verified: false,
-      });
-    }
-
-    // Melakukan penyimpanan record ke jaringan public
-    try {
-      console.log("📡 Menyimpan record edit ke jaringan public...");
-
+      // Buat record awal di jaringan public
       const publicResult = await addPlantRecordToPublic(
-        privateTxHash,
-        plantId,
+        "pending", 
+        plantId.toString(),
         userAddress
       );
 
       console.log(
-        "✅ Record edit berhasil disimpan ke jaringan public:",
-        publicResult.publicTxHash
+        `✅ Record edit berhasil dibuat dengan recordId: ${recordId}`
       );
-      console.timeEnd("Confirm Edit Plant Time");
 
-      res.json({
-        success: true,
-        message: "Tanaman berhasil diedit dan diverifikasi",
-        besu: {
-          txHash: privateTxHash,
-          plantId: plantId.toString(),
-          verified: true,
-        },
-        public: {
-          txHash: publicResult.publicTxHash,
-          blockNumber: publicResult.blockNumber,
-          gasUsed: publicResult.gasUsed,
-        },
-      });
+      // Verifikasi transaksi di Hyperledger Besu dengan retry
+      let transactionVerified = false;
+      let retryCount = 0;
+      const maxRetries = 10;
+      const retryDelay = 2000;
+
+      while (!transactionVerified && retryCount < maxRetries) {
+        try {
+          console.log(
+            `🔍 Mencoba verifikasi transaksi edit (attempt ${
+              retryCount + 1
+            }/${maxRetries})`
+          );
+
+          const { contract, web3 } = await initialize();
+
+          const receipt = await web3.eth.getTransactionReceipt(privateTxHash);
+
+          if (receipt && receipt.status) {
+            console.log("✅ Transaksi edit berhasil diverifikasi!");
+            transactionVerified = true;
+
+            // Update record dengan privateTxHash yang benar
+            try {
+              const updateResult = await updatePlantRecordHash(
+                recordId,
+                privateTxHash
+              );
+
+              console.log(
+                "✅ Record edit berhasil diupdate dengan privateTxHash yang benar"
+              );
+              console.timeEnd("Confirm Edit Plant Time");
+
+              return res.json({
+                success: true,
+                message:
+                  "Tanaman berhasil diedit di Hyperledger Besu dan record disimpan ke jaringan public",
+                besu: {
+                  txHash: privateTxHash,
+                  plantId: plantId.toString(),
+                },
+                public: {
+                  txHash: publicResult.publicTxHash,
+                  updateTxHash: updateResult.updateTxHash,
+                  recordId: recordId.toString(),
+                  blockNumber: publicResult.blockNumber,
+                  gasUsed: publicResult.gasUsed,
+                },
+              });
+            } catch (updateError) {
+              console.error("❌ Error updating edit record hash:", updateError);
+              return res.json({
+                success: true,
+                message:
+                  "Tanaman berhasil diedit, record dibuat tapi gagal update hash",
+                besu: {
+                  txHash: privateTxHash,
+                  plantId: plantId.toString(),
+                },
+                public: {
+                  txHash: publicResult.publicTxHash,
+                  recordId: recordId.toString(),
+                  blockNumber: publicResult.blockNumber,
+                  gasUsed: publicResult.gasUsed,
+                },
+                warning:
+                  "Record hash belum diupdate dengan privateTxHash yang benar",
+              });
+            }
+          } else if (receipt && !receipt.status) {
+            return res.status(400).json({
+              success: false,
+              message: "Transaksi edit gagal dieksekusi di Hyperledger Besu",
+            });
+          } else {
+            console.log(
+              `⏳ Transaksi edit belum ter-mine, menunggu ${
+                retryDelay / 1000
+              } detik`
+            );
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
+            retryCount++;
+          }
+        } catch (verifyError) {
+          console.log(
+            `⚠️ Error verifying edit transaction (attempt ${retryCount + 1}): ${
+              verifyError.message
+            }`
+          );
+          retryCount++;
+
+          if (retryCount < maxRetries) {
+            await new Promise((resolve) => setTimeout(resolve, retryDelay));
+          }
+        }
+      }
+
+      // Jika verifikasi gagal setelah semua retry
+      if (!transactionVerified) {
+        return res.json({
+          success: true,
+          message:
+            "Record edit dibuat di jaringan public, tapi verifikasi transaksi private gagal",
+          besu: {
+            txHash: privateTxHash,
+            plantId: plantId.toString(),
+          },
+          public: {
+            txHash: publicResult.publicTxHash,
+            recordId: recordId.toString(),
+            blockNumber: publicResult.blockNumber,
+            gasUsed: publicResult.gasUsed,
+          },
+          warning:
+            "Transaksi private tidak dapat diverifikasi, record hash mungkin tidak akurat",
+        });
+      }
     } catch (publicError) {
-      console.error("❌ Error menyimpan edit ke jaringan public:", publicError);
-
-      // Transaksi Besu valid tapi public gagal
-      res.json({
-        success: true,
-        message:
-          "Tanaman berhasil diedit dan diverifikasi, tetapi gagal menyimpan record ke jaringan public",
-        besu: {
-          txHash: privateTxHash,
-          plantId: plantId.toString(),
-          verified: true,
-        },
-        publicError: publicError.message,
-        warning:
-          "Edit tersimpan di Hyperledger Besu tetapi tidak tersinkronisasi ke jaringan public",
+      console.error(
+        "❌ Error creating edit record in public blockchain:",
+        publicError
+      );
+      return res.status(500).json({
+        success: false,
+        message: `Gagal membuat record edit di jaringan public: ${publicError.message}`,
       });
     }
   } catch (error) {
@@ -418,7 +562,7 @@ async function getPlant(req, res) {
     console.time("Get Plant Time");
     const { plantId } = req.params;
 
-    // Ambil alamat publik user (kalau tersedia, bisa undefined untuk guest)
+    // Ambil alamat publik user
     const userAddress = req.user?.publicKey;
 
     const { contract } = await initialize();
@@ -760,9 +904,9 @@ async function searchPlants(req, res) {
       namaLatin: plant.namaLatin || "Tidak Diketahui",
       komposisi: plant.komposisi || "Tidak Diketahui",
       manfaat: plant.manfaat || "Tidak Diketahui",
-      dosis: plant.dosis || "Tidak Diketahui", // Menambahkan dosis
+      dosis: plant.dosis || "Tidak Diketahui",
       caraPengolahan: plant.caraPengolahan || "Tidak Diketahui",
-      efekSamping: plant.efekSamping || "Tidak Diketahui", // Menambahkan efek samping
+      efekSamping: plant.efekSamping || "Tidak Diketahui",
       ipfsHash: plant.ipfsHash || "Tidak Diketahui",
       ratingTotal: (plant.ratingTotal || 0n)?.toString() || "0",
       ratingCount: (plant.ratingCount || 0n)?.toString() || "0",
@@ -802,7 +946,7 @@ async function getComments(req, res) {
             timestamp: comment.timestamp.toString(),
           };
         } catch (error) {
-          // Kalau gagal ambil userInfo (misal user belum register), tetap jalan
+          // Kalau gagal ambil userInfo kalau user belum register, tetap jalan
           return {
             publicKey: comment.user,
             fullName: "Unknown User",

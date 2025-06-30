@@ -22,7 +22,7 @@ async function registerUser(walletAddress, fullName, password) {
       throw new Error("Password tidak boleh kosong");
     }
 
-    // Validasi format wallet address (opsional)
+    // Validasi format wallet address
     if (!walletAddress.match(/^0x[a-fA-F0-9]{40}$/)) {
       throw new Error("Format wallet address tidak valid");
     }
@@ -116,7 +116,7 @@ async function loginUser(walletAddress, password) {
   }
 }
 
-// Fungsi getUserData: Tetap sama, hanya membaca data
+// Fungsi getUserData
 async function getUserData(walletAddress) {
   try {
     const { contract } = await initialize();

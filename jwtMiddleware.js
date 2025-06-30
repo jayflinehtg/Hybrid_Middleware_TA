@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
-const { initialize } = require("./utils/blockchain.js"); // Mengakses fungsi blockchain untuk validasi
+const { initialize } = require("./utils/blockchain.js");
 dotenv.config();
 
 const verifyToken = async (req, res, next) => {
@@ -21,7 +21,7 @@ const verifyToken = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
 
-    console.log("Decoded token:", decoded); // Debugging: Menampilkan token yang terdecode
+    console.log("Decoded token:", decoded); // Menampilkan token yang terdecode
 
     // Mendapatkan publicKey (wallet address) dari decoded token
     const { publicKey } = decoded;
@@ -133,7 +133,7 @@ const requireFreshToken = async (req, res, next) => {
     if (error.name === "TokenExpiredError") {
       return handleTokenExpiration(req, res, next);
     }
-    
+
     return res.status(401).json({
       success: false,
       message: "Token tidak valid untuk operasi ini",

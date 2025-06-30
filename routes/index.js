@@ -11,7 +11,7 @@ const router = express.Router();
 let blockchain;
 (async () => {
   try {
-    blockchain = await initialize(); // Memastikan blockchain sudah terhubung
+    blockchain = await initialize();
     console.log("✅ Blockchain berhasil di-inisialisasi");
   } catch (error) {
     console.error("❌ Error initializing blockchain:", error.message);

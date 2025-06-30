@@ -34,7 +34,7 @@ async function connectToBlockchain() {
     );
   }
 
-  console.log("Using contract address:", contractAddress); // Debug log
+  console.log("Using contract address:", contractAddress);
   console.log("Using RPC URL:", rpcUrl);
 
   web3 = new Web3(rpcUrl);

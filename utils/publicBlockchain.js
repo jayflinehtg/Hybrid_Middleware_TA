@@ -114,7 +114,7 @@ async function addPlantRecordToPublic(privateTxHash, plantId, userAddress) {
     console.time("Add Plant Record to Public Time");
     console.log("Sending transaction to public network...");
 
-    const TIMEOUT_MS = 30000; 
+    const TIMEOUT_MS = 30000;
 
     const timeoutPromise = new Promise((_, reject) => {
       setTimeout(
@@ -129,7 +129,7 @@ async function addPlantRecordToPublic(privateTxHash, plantId, userAddress) {
       // Buat method call
       const methodCall = contract.methods.addPlantRecord(
         privateTxHash,
-        plantId.toString(), 
+        plantId.toString(),
         userAddress
       );
 
@@ -155,13 +155,85 @@ async function addPlantRecordToPublic(privateTxHash, plantId, userAddress) {
       error.message
     );
 
-    // ✅ Enhanced error handling dengan timeout info
+    // error handling dengan timeout info
     if (error.message.includes("timeout")) {
       console.error(
         "❌ Public blockchain timeout - Tea Sepolia might be congested"
       );
     }
 
+    throw error;
+  }
+}
+
+function convertToNumber(value) {
+  if (typeof value === "bigint") {
+    // Cek apakah BigInt dalam range Number yang aman
+    if (value <= Number.MAX_SAFE_INTEGER && value >= Number.MIN_SAFE_INTEGER) {
+      return Number(value);
+    } else {
+      throw new Error(
+        `BigInt value ${value} is too large to convert to Number safely`
+      );
+    }
+  }
+  return typeof value === "string" ? parseInt(value) : value;
+}
+
+// Fungsi untuk Update Plant Record Hash
+async function updatePlantRecordHash(recordId, txHash, userPrivateKey = null) {
+  try {
+    console.log(`📝 Updating plant record hash for recordId: ${recordId}`);
+
+    const { web3, contract } = await initializePublic();
+
+    const privateKey = userPrivateKey || process.env.PUBLIC_NETWORK_PRIVATE_KEY;
+    const signerAccount = web3.eth.accounts.privateKeyToAccount(privateKey);
+
+    // Gunakan helper function
+    const recordIdNumber = convertToNumber(recordId);
+
+    // Estimate gas untuk updatePlantRecordHash
+    const gasEstimate = await contract.methods
+      .updatePlantRecordHash(recordIdNumber, txHash)
+      .estimateGas({ from: signerAccount.address });
+
+    // Gunakan helper function untuk semua konversi
+    const gasEstimateNumber = convertToNumber(gasEstimate);
+    const gasPrice = await web3.eth.getGasPrice();
+    const gasPriceNumber = convertToNumber(gasPrice);
+    const nonce = await web3.eth.getTransactionCount(signerAccount.address);
+    const nonceNumber = convertToNumber(nonce);
+
+    // Buat transaksi untuk update record hash
+    const tx = {
+      to: contractAddress,
+      data: contract.methods
+        .updatePlantRecordHash(recordIdNumber, txHash)
+        .encodeABI(),
+      gas: Math.floor(gasEstimateNumber * 1.2),
+      gasPrice: gasPriceNumber,
+      nonce: nonceNumber,
+    };
+
+    // Sign dan kirim transaksi
+    const signedTx = await web3.eth.accounts.signTransaction(tx, privateKey);
+    const receipt = await web3.eth.sendSignedTransaction(
+      signedTx.rawTransaction
+    );
+
+    console.log(`✅ Plant record hash updated successfully!`);
+    console.log(`📋 Update TX Hash: ${receipt.transactionHash}`);
+
+    return {
+      success: true,
+      updateTxHash: receipt.transactionHash,
+      blockNumber: receipt.blockNumber.toString(),
+      gasUsed: receipt.gasUsed.toString(),
+      recordId: recordIdNumber.toString(),
+    };
+  } catch (error) {
+    console.error(`❌ Error updating plant record hash:`, error);
     throw error;
   }
 }
@@ -289,6 +361,7 @@ async function getRecordCount() {
 module.exports = {
   initializePublic,
   addPlantRecordToPublic,
+  updatePlantRecordHash,
   getPlantRecordFromPublic,
   getAllPublicRecords,
   getPlantTransactionHistory,

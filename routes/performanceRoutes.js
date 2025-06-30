@@ -26,10 +26,8 @@ const {
 
   performanceAddFileToIPFS,
   performanceGetFileFromIPFS,
-} = require("../controllers/performanceController.js");
 
-const {
-  verifyTransactionInBesu,
+  verifyTransactionInBesu
 } = require("../controllers/performanceController.js");
 
 const router = express.Router();
