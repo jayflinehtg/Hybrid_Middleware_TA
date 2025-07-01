@@ -102,22 +102,30 @@ router.get("/public/records", async (req, res) => {
 // Route untuk mendapatkan transaction history berdasarkan plantId dengan pagination
 router.get("/public/history/:plantId", async (req, res) => {
   try {
+    console.log("🔍 [DEBUG] Route /public/history/:plantId called");
+    console.log("🔍 [DEBUG] plantId:", req.params.plantId);
+    console.log("🔍 [DEBUG] page:", req.query.page);
+    console.log("🔍 [DEBUG] limit:", req.query.limit);
+
     const {
       getPlantTransactionHistory,
     } = require("../utils/publicBlockchain.js");
+    
     const { plantId } = req.params;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 10;
 
-    // Validasi plantId
     if (!plantId || isNaN(parseInt(plantId))) {
+      console.log("❌ [DEBUG] Invalid plantId");
       return res.status(400).json({
         success: false,
         message: "Plant ID tidak valid",
       });
     }
 
+    console.log("🔍 [DEBUG] Calling getPlantTransactionHistory...");
     const result = await getPlantTransactionHistory(plantId, page, limit);
+    console.log("🔍 [DEBUG] Result from getPlantTransactionHistory:", result);
 
     // Format timestamp menjadi readable format
     const formattedRecords = result.records.map((record) => {
@@ -141,13 +149,19 @@ router.get("/public/history/:plantId", async (req, res) => {
       };
     });
 
-    res.json({
+    const response = {
       success: true,
       plantId: plantId,
       data: formattedRecords,
       pagination: result.pagination,
-    });
+    };
+
+    console.log("🔍 [DEBUG] Final response:", response);
+    console.log("🔍 [DEBUG] Number of records returned:", formattedRecords.length);
+
+    res.json(response);
   } catch (error) {
+    console.error("❌ [DEBUG] Error in route:", error);
     res.status(500).json({
       success: false,
       message: error.message,

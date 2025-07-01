@@ -68,8 +68,6 @@ async function initialize() {
       if (!contract || !contract.methods) {
         throw new Error("Kontrak tidak terhubung dengan benar.");
       }
-
-      console.log("Blockchain berhasil diinisialisasi.");
       return { contract, web3 };
     } catch (error) {
       initializationPromise = null;

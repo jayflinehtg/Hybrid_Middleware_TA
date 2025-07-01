@@ -6,44 +6,6 @@ const {
   initializePublic,
 } = require("../utils/publicBlockchain.js");
 
-async function verifyTransactionInBesu(txHash, expectedEventSignature) {
-  try {
-    const { contract, web3 } = await initialize();
-
-    // Get transaction receipt
-    const txReceipt = await web3.eth.getTransactionReceipt(txHash);
-
-    if (!txReceipt) {
-      throw new Error("Transaksi tidak ditemukan di blockchain private");
-    }
-
-    if (!txReceipt.status) {
-      throw new Error("Transaksi gagal di blockchain private");
-    }
-
-    // Verify transaction
-    const expectedEvent = txReceipt.logs.find(
-      (log) => log.topics[0] === web3.utils.keccak256(expectedEventSignature)
-    );
-
-    if (!expectedEvent) {
-      throw new Error(
-        `Transaksi bukan operasi yang diharapkan: ${expectedEventSignature}`
-      );
-    }
-
-    return {
-      isValid: true,
-      blockNumber: txReceipt.blockNumber,
-      gasUsed: txReceipt.gasUsed,
-      from: txReceipt.from,
-    };
-  } catch (error) {
-    console.error("❌ Error verifying transaction:", error);
-    throw error;
-  }
-}
-
 async function addPlantData(req, res) {
   try {
     const userAddress = req.user.publicKey;
@@ -142,7 +104,7 @@ async function confirmAddPlant(req, res) {
       // Buat record awal di jaringan public
       const publicResult = await addPlantRecordToPublic(
         "pending",
-        plantId.toString(),
+        plantId,
         userAddress
       );
 
@@ -227,9 +189,7 @@ async function confirmAddPlant(req, res) {
             });
           } else {
             console.log(
-              `⏳ Transaksi belum ter-mine, menunggu ${
-                retryDelay / 1000
-              } detik`
+              `⏳ Transaksi belum ter-mine, menunggu ${retryDelay / 1000} detik`
             );
             await new Promise((resolve) => setTimeout(resolve, retryDelay));
             retryCount++;
@@ -410,8 +370,8 @@ async function confirmEditPlant(req, res) {
 
       // Buat record awal di jaringan public
       const publicResult = await addPlantRecordToPublic(
-        "pending", 
-        plantId.toString(),
+        "pending",
+        plantId,
         userAddress
       );
 

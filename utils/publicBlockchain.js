@@ -280,27 +280,56 @@ async function getAllPublicRecords() {
 
 async function getPlantTransactionHistory(plantId, page = 1, limit = 10) {
   try {
+    console.log("🔍 [DEBUG] getPlantTransactionHistory called with:", { plantId, page, limit });
+    
     const { contract } = await initializePublic();
+    console.log("🔍 [DEBUG] Contract initialized successfully");
+    
     const totalRecords = await contract.methods.recordCount().call();
     const total = parseInt(totalRecords.toString());
+    
+    console.log("🔍 [DEBUG] Total records in PublicRecord contract:", total);
+    
+    if (total === 0) {
+      console.log("⚠️ [DEBUG] No records found in PublicRecord contract");
+      return {
+        records: [],
+        pagination: {
+          currentPage: page,
+          totalPages: 0,
+          totalRecords: 0,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+      };
+    }
 
     // Filter records berdasarkan plantId
     const plantRecords = [];
 
     for (let i = 0; i < total; i++) {
-      const record = await contract.methods.getPlantRecord(i).call();
+      try {
+        const record = await contract.methods.getPlantRecord(i).call();
+        console.log(`🔍 [DEBUG] Record ${i}:`, record);
 
-      // Filter hanya record yang sesuai dengan plantId
-      if (record.plantId.toString() === plantId.toString()) {
-        plantRecords.push({
-          recordId: i.toString(),
-          privateTxHash: record.privateTxHash,
-          plantId: record.plantId.toString(),
-          userAddress: record.userAddress,
-          timestamp: record.timestamp.toString(),
-        });
+        // Filter hanya record yang sesuai dengan plantId
+        if (record.plantId.toString() === plantId.toString()) {
+          console.log(`✅ [DEBUG] Found matching record for plantId ${plantId}:`, record);
+          plantRecords.push({
+            recordId: i.toString(),
+            privateTxHash: record.privateTxHash,
+            plantId: record.plantId.toString(),
+            userAddress: record.userAddress,
+            timestamp: record.timestamp.toString(),
+          });
+        }
+      } catch (recordError) {
+        console.log(`⚠️ [DEBUG] Error reading record ${i}:`, recordError.message);
+        continue;
       }
     }
+
+    console.log(`🔍 [DEBUG] Found ${plantRecords.length} records for plantId ${plantId}`);
 
     // Sort berdasarkan timestamp (terbaru dulu)
     plantRecords.sort((a, b) => parseInt(b.timestamp) - parseInt(a.timestamp));

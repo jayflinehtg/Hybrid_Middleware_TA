@@ -12,7 +12,7 @@ let blockchain;
 (async () => {
   try {
     blockchain = await initialize();
-    console.log("✅ Blockchain berhasil di-inisialisasi");
+    console.log("✅ Private Blockchain berhasil di-inisialisasi");
   } catch (error) {
     console.error("❌ Error initializing blockchain:", error.message);
     process.exit(1);
